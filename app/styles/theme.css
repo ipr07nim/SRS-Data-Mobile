@@ -1,0 +1,110 @@
+@import './fonts.css';
+@import 'tailwindcss';
+@import 'konsta/react/theme.css';
+
+/* Konsta dark: utilities follow our .dark class (not only OS preference) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-spirit-gold: rgb(245, 200, 95);
+  --color-spirit-gold-dark: #d88e0b;
+  --color-slate-grey: #64748b;
+  --color-brand-primary: #f5c85f;
+  --color-brand-red: #ef4444;
+  --font-inter: "Inter", sans-serif;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Dark theme — only when explicitly selected or resolved from system */
+html[data-theme="dark"] {
+  --app-bg: #2d2d2d;
+  --app-fg: #ffffff;
+  --app-fg-muted: #94a3b8;
+  --surface-base: #000000;
+  --surface-card: #171717;
+  --surface-elevated: #262626;
+  --surface-input: #000000;
+  --surface-placeholder: #262626;
+  --border-subtle: rgba(38, 38, 38, 0.8);
+  --border-default: #262626;
+  --overlay-backdrop: rgba(0, 0, 0, 0.6);
+  --vignette-from: rgba(0, 0, 0, 0.9);
+  --vignette-gradient: linear-gradient(
+    to bottom,
+    var(--vignette-from) 0%,
+    rgba(0, 0, 0, 0.35) 45%,
+    transparent 80%
+  );
+  --top-edge-shadow: none;
+  --header-edge-shadow: 0 6px 20px 0 rgba(0, 0, 0, 0.55), 0 2px 10px 0 rgba(0, 0, 0, 0.4);
+  --modal-fg: #cbd5e1;
+  --nav-inactive: #64748b;
+  --segment-unrecorded-bg: #000000;
+  --segment-unrecorded-border: #404040;
+  --segment-unrecorded-text: #64748b;
+}
+
+/* Light theme */
+html[data-theme="light"] {
+  --app-bg: #ececee;
+  --app-fg: #0a0a0a;
+  --app-fg-muted: #52525b;
+  --surface-base: #ffffff;
+  --surface-card: #ffffff;
+  --surface-elevated: #f4f4f5;
+  --surface-input: #fafafa;
+  --surface-placeholder: #d4d4d8;
+  --border-subtle: rgba(212, 212, 216, 0.9);
+  --border-default: #d4d4d8;
+  --overlay-backdrop: rgba(0, 0, 0, 0.35);
+  --vignette-from: #ffffff;
+  --vignette-gradient: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 0.7) 30%,
+    transparent 65%
+  );
+  --top-edge-shadow:
+    0 2px 12px 4px rgba(255, 255, 255, 1),
+    0 6px 28px 8px rgba(255, 255, 255, 0.9);
+  --header-edge-shadow: 0 4px 14px -2px rgba(255, 255, 255, 0.85);
+  --modal-fg: #3f3f46;
+  --nav-inactive: #71717a;
+  --segment-unrecorded-bg: #e4e4e7;
+  --segment-unrecorded-border: #d4d4d8;
+  --segment-unrecorded-text: #71717a;
+}
+
+body {
+  background-color: var(--app-bg);
+  color: var(--app-fg);
+  font-family: var(--font-inter);
+  overscroll-behavior-y: contain;
+}
+
+html {
+  overscroll-behavior-y: contain;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Kinetic scroll panes */
+.scroll-pane,
+main {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.scroll-pane-x {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
