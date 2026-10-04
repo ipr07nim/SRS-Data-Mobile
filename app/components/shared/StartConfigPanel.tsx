@@ -10,22 +10,20 @@ const labelColors = {
   labelTextFocusMaterial: 'text-xs text-primary font-medium tracking-wide',
 };
 
-export function StartConfigPanel() {
+/** Typed-in setup for the next roll; used when today's SRS plan can't be loaded. */
+export function StartConfigPanel({ title = 'Next roll (typed in)' }: { title?: string }) {
   const config = useAppStore((s) => s.config);
-  const rollActive = useAppStore((s) => s.rollActive);
   const setConfig = useAppStore((s) => s.setConfig);
-  const disabled = rollActive;
 
   return (
     <>
-      <BlockHeader>Roll configuration</BlockHeader>
+      <BlockHeader>{title}</BlockHeader>
       <List strong inset>
         <ListInput
           label="Driver"
           type="text"
           placeholder="Name"
           value={config.driver}
-          disabled={disabled}
           colors={labelColors}
           inputClassName="text-base font-normal"
           onChange={(e) =>
@@ -38,7 +36,6 @@ export function StartConfigPanel() {
           placeholder="Select buggy"
           dropdown
           value={config.buggy}
-          disabled={disabled}
           colors={labelColors}
           inputClassName="text-base font-normal"
           onChange={(e) =>

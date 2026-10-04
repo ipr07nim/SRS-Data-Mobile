@@ -67,5 +67,21 @@ export const SUPPORT_EMAIL = 'srsdata@example.com';
 
 export const UNDO_WINDOW_MS = 3000;
 
+/** Stations that can open a roll: the Hill 1 line, or Hill 2 when Hill 1 is skipped. */
+export const OPENER_STATIONS = ['start', 'h1h2'] as const;
+export type OriginStation = (typeof OPENER_STATIONS)[number];
+
+/** A Hill 2 tap this soon after a Hill 1 start belongs to that roll rather than opening a new one. */
+export const JOIN_WINDOW_MS = 120_000;
+
+/** An opener station cannot start another roll this soon after it last opened or logged one. */
+export const RESTART_LOCK_MS = 60_000;
+
+/** Only rolls started this recently are treated as on the course. */
+export const ACTIVE_ROLL_MAX_AGE_MS = 30 * 60 * 1000;
+
+/** Timezone used for "today" (SRS plan dates, rolls days). */
+export const COURSE_TIME_ZONE = 'America/New_York';
+
 /** Max video size for client-side roll attachment (localStorage persist). */
 export const MAX_ROLL_VIDEO_BYTES = 20 * 1024 * 1024;

@@ -15,22 +15,22 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(url && anonKey);
 }
 
-/** Subscribe to real-time updates on a single roll row. Returns an object with `unsubscribe()`. */
-export function subscribeToRoll(
+/** Subscribe to tap inserts and undos for one roll. Returns an object with `unsubscribe()`. */
+export function subscribeToRollTaps(
   rollId: number,
-  onChange: (payload: Record<string, unknown>) => void,
+  onChange: () => void,
 ): { unsubscribe: () => void; channel: RealtimeChannel } {
   const channel = supabase
-    .channel(`roll-${rollId}`)
+    .channel(`roll-taps-${rollId}`)
     .on(
       'postgres_changes',
       {
-        event: 'UPDATE',
+        event: '*',
         schema: 'public',
-        table: 'rolls',
-        filter: `id=eq.${rollId}`,
+        table: 'roll_taps',
+        filter: `roll_id=eq.${rollId}`,
       },
-      (payload) => onChange(payload.new as Record<string, unknown>),
+      () => onChange(),
     )
     .subscribe();
 
@@ -40,10 +40,6 @@ export function subscribeToRoll(
       void supabase.removeChannel(channel);
     },
   };
-}
-
-export function unsubscribeFromRoll(channel: RealtimeChannel): void {
-  void supabase.removeChannel(channel);
 }
 
 /** Subscribe to INSERT/UPDATE/DELETE on an entire table. */

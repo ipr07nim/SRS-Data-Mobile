@@ -10,9 +10,7 @@ const labelColors = {
 
 export function PusherConfigPanel() {
   const config = useAppStore((s) => s.config);
-  const rollActive = useAppStore((s) => s.rollActive);
   const setConfig = useAppStore((s) => s.setConfig);
-  const disabled = rollActive;
 
   return (
     <List strong inset>
@@ -23,7 +21,6 @@ export function PusherConfigPanel() {
           type="text"
           placeholder="Name"
           value={name}
-          disabled={disabled}
           colors={labelColors}
           inputClassName="text-base font-normal"
           onChange={(e) => {

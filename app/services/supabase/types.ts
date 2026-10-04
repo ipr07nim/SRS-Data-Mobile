@@ -1,3 +1,4 @@
+import type { OriginStation } from '../../config/app.config';
 import type { RollConfig, StationRecords } from '../../domain/types';
 import type { WeatherSnapshot } from '../../domain/weather';
 
@@ -20,6 +21,11 @@ export interface DbRollRow {
   client_id: string | null;
   video_url: string | null;
   created_at: string;
+  /** Null on rolls saved before phone sync; those started at the Hill 1 line. */
+  origin_station: OriginStation | null;
+  srs_roll_date: string | null;
+  srs_roll_number: number | null;
+  srs_buggy_id: number | null;
 }
 
 export interface DbRollSplitRow {

@@ -5,9 +5,6 @@ import { createEmptyRecords } from '../domain/timing';
 
 export const PERSIST_VERSION = 1;
 
-/** Active rolls older than this are cleared on rehydrate (ms). */
-export const ACTIVE_ROLL_MAX_AGE_MS = 48 * 60 * 60 * 1000;
-
 const THEME_SESSION_KEY = 'srs-theme';
 
 function normalizePushers(pushers: unknown): string[] {

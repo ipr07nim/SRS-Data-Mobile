@@ -24,6 +24,11 @@ export function getRoleById(id: RoleView) {
   return ROLES.find((r) => r.id === id) ?? ROLES.find((r) => r.id === 'pusher')!;
 }
 
-export function roleShowsAssignTab(view: RoleView): boolean {
+/** Everyone can see who is pushing which hill. */
+export function roleShowsAssignTab(_view: RoleView): boolean {
+  return true;
+}
+
+export function roleCanEditAssignments(view: RoleView): boolean {
   return view === 'pusher' || view === 'mechanic';
 }

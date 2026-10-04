@@ -125,7 +125,7 @@ begin
               and s.hill = substring(hill_val from 2)::smallint
             where hill_val = 'all' or s.id is not null
           )
-          select coalesce(jsonb_agg(row_to_json(t) order by t.time_ms asc), '[]'::jsonb)
+          select coalesce(jsonb_agg(row_to_json(t) order by t."timeMs" asc), '[]'::jsonb)
           from (
             select
               row_number() over (order by time_ms asc) as rank,

@@ -1,8 +1,9 @@
-import { ACTIVE_ROLL_MAX_AGE_MS } from '../../store/persist';
+import { ACTIVE_ROLL_MAX_AGE_MS } from '../../config/app.config';
+import type { OriginStation, StationId } from '../../config/app.config';
 import { getClientId } from '../../lib/clientId';
+import { sharedNow } from '../../lib/serverClock';
 import { supabase } from '../../lib/supabase';
-import type { StationId } from '../../config/app.config';
-import { computeTotalElapsedMs } from '../../domain/timing';
+import { computeTotalElapsedMs, createEmptyRecords } from '../../domain/timing';
 import type { RollConfig, StationRecords } from '../../domain/types';
 import type { WeatherSnapshot } from '../../domain/weather';
 import {
@@ -14,24 +15,36 @@ import {
 import type { SavedRoll } from '../../domain/rolls';
 import type { DbRollRow, DbRollSplitRow } from './types';
 
+/** The SRS plan entry a roll was timed for. */
+export interface SrsRollLink {
+  rollDate: string;
+  rollNumber: number;
+  buggyId: number;
+}
+
 function mapRollRow(row: Record<string, unknown>): DbRollRow {
+  const origin = row.origin_station;
   return {
     id: row.id as number,
-    start_time_ms: row.start_time_ms as number,
+    start_time_ms: Number(row.start_time_ms),
     driver: row.driver as string | null,
     buggy: row.buggy as string | null,
-    total_ms: row.total_ms as number | null,
+    total_ms: row.total_ms == null ? null : Number(row.total_ms),
     weather: row.weather as DbRollRow['weather'],
     notes: (row.notes as string) ?? '',
     flagger_notes: Array.isArray(row.flagger_notes) ? row.flagger_notes : [],
     unreliable_stations: (row.unreliable_stations as string[]) ?? [],
-    exported_at: row.exported_at as number | null,
+    exported_at: row.exported_at == null ? null : Number(row.exported_at),
     status: row.status as DbRollRow['status'],
     records: normalizeDbRecords(row.records),
     config_snapshot: row.config_snapshot as RollConfig,
     client_id: row.client_id as string | null,
     video_url: (row.video_url as string | null) ?? null,
     created_at: row.created_at as string,
+    origin_station: origin === 'start' || origin === 'h1h2' ? origin : null,
+    srs_roll_date: (row.srs_roll_date as string | null) ?? null,
+    srs_roll_number: row.srs_roll_number == null ? null : Number(row.srs_roll_number),
+    srs_buggy_id: row.srs_buggy_id == null ? null : Number(row.srs_buggy_id),
   };
 }
 
@@ -67,8 +80,9 @@ export async function fetchCompletedRolls(): Promise<SavedRoll[]> {
   });
 }
 
+/** The roll on the course right now: the newest active roll started recently. */
 export async function fetchActiveRoll(): Promise<DbRollRow | null> {
-  const cutoff = Date.now() - ACTIVE_ROLL_MAX_AGE_MS;
+  const cutoff = Math.round(sharedNow() - ACTIVE_ROLL_MAX_AGE_MS);
   const { data, error } = await supabase
     .from('rolls')
     .select('*')
@@ -83,24 +97,20 @@ export async function fetchActiveRoll(): Promise<DbRollRow | null> {
   return mapRollRow(data);
 }
 
-export async function createActiveRoll(
-  config: RollConfig,
-  startTimeMs: number,
-  weather: WeatherSnapshot,
-): Promise<DbRollRow> {
-  const records: StationRecords = {
-    start: startTimeMs,
-    h1h2: null,
-    h2h3: null,
-    h3h4: null,
-    h4h5: null,
-    finish: null,
-  };
+export async function createActiveRoll(params: {
+  config: RollConfig;
+  originStation: OriginStation;
+  originMs: number;
+  srs: SrsRollLink | null;
+  weather: WeatherSnapshot;
+}): Promise<DbRollRow> {
+  const { config, originStation, originMs, srs, weather } = params;
+  const records: StationRecords = { ...createEmptyRecords(), [originStation]: Math.round(originMs) };
 
   const { data, error } = await supabase
     .from('rolls')
     .insert({
-      start_time_ms: startTimeMs,
+      start_time_ms: Math.round(originMs),
       driver: config.driver,
       buggy: config.buggy,
       weather,
@@ -110,6 +120,10 @@ export async function createActiveRoll(
       notes: '',
       unreliable_stations: [],
       client_id: getClientId(),
+      origin_station: originStation,
+      srs_roll_date: srs?.rollDate ?? null,
+      srs_roll_number: srs?.rollNumber ?? null,
+      srs_buggy_id: srs?.buggyId ?? null,
     })
     .select('*')
     .single();
@@ -118,20 +132,17 @@ export async function createActiveRoll(
   return mapRollRow(data);
 }
 
-export async function syncRollRecords(
+/** Notes and late-tap flags. Taps live in roll_taps and are never written here mid-roll. */
+export async function syncRollMeta(
   rollId: number,
-  records: StationRecords,
   unreliableStations: StationId[],
   notes: string,
 ): Promise<void> {
-  const totalMs = computeTotalElapsedMs(records);
   const { error } = await supabase
     .from('rolls')
     .update({
-      records,
       unreliable_stations: unreliableStations,
       notes,
-      total_ms: totalMs > 0 ? totalMs : null,
     })
     .eq('id', rollId)
     .eq('status', 'active');
@@ -154,16 +165,19 @@ export async function cancelRollInDb(rollId: number, records: StationRecords): P
   if (error) throw error;
 }
 
+/** Saves a roll as completed with whatever stations were tapped; finish is not required. */
 export async function finalizeRollInDb(
   rollId: number,
-  records: StationRecords,
-  config: RollConfig,
-  weather: WeatherSnapshot,
-  notes: string,
-  unreliableStations: StationId[],
+  params: {
+    records: StationRecords;
+    config: RollConfig;
+    weather: WeatherSnapshot | null;
+    notes: string;
+    unreliableStations: StationId[];
+  },
 ): Promise<void> {
+  const { records, config, weather, notes, unreliableStations } = params;
   const totalMs = computeTotalElapsedMs(records);
-  const exportedAt = Date.now();
 
   const { error: rollErr } = await supabase
     .from('rolls')
@@ -173,8 +187,8 @@ export async function finalizeRollInDb(
       weather,
       notes,
       unreliable_stations: unreliableStations,
-      total_ms: totalMs,
-      exported_at: exportedAt,
+      total_ms: totalMs > 0 ? totalMs : null,
+      exported_at: Date.now(),
       status: 'completed',
       driver: config.driver,
       buggy: config.buggy,

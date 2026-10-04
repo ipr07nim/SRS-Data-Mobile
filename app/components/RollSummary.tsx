@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Block,
@@ -14,7 +14,7 @@ import { Thermometer, Wind, DropFill, Cube } from 'framework7-icons/react';
 import { MdThermostat, MdAir, MdWaterDrop, MdStorage } from 'react-icons/md';
 import { HILL_LABEL_TO_STATION } from '../config/app.config';
 import type { HillLabel } from '../config/app.config';
-import { computeSplits, formatTotalElapsed } from '../domain/timing';
+import { computeSplits, formatTotalElapsed, splitCount } from '../domain/timing';
 import { useAppStore } from '../store';
 import { SummaryRouteGuard } from './guards/RouteGuards';
 import { FlaggerNotesSection } from './shared/FlaggerNotesSection';
@@ -32,28 +32,30 @@ function RollSummaryContent() {
   const unreliableStations = useAppStore((s) => s.unreliableStations);
   const rollConfigSnapshot = useAppStore((s) => s.rollConfigSnapshot);
   const config = useAppStore((s) => s.config);
-  const setFinished = useAppStore((s) => s.setFinished);
+  const activeOrigin = useAppStore((s) => s.activeOrigin);
+  const syncError = useAppStore((s) => s.syncError);
   const flaggerNotes = useAppStore((s) => s.flaggerNotes);
   const setRollNotes = useAppStore((s) => s.setRollNotes);
   const exportRoll = useAppStore((s) => s.exportRoll);
 
   const splitConfig = rollConfigSnapshot ?? config;
 
-  useEffect(() => {
-    setFinished(true);
-  }, [setFinished]);
-
   const [showWeatherModal, setShowWeatherModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const startDate = startTime ? new Date(startTime) : new Date();
   const splits = computeSplits(records, splitConfig);
   const totalElapsedDisplay = formatTotalElapsed(records);
-  const canExport = records.finish != null;
+  const hasFinish = records.finish != null;
+  const canExport = hasFinish || splitCount(records) > 0;
 
   const handleExport = async () => {
     if (isExporting || !canExport) return;
     setIsExporting(true);
     await exportRoll();
+    if (useAppStore.getState().rollActive) {
+      setIsExporting(false);
+      return;
+    }
     navigate('/');
   };
 
@@ -79,7 +81,11 @@ function RollSummaryContent() {
 
   const exportHint = !canExport ? (
     <p className="text-xs text-center text-[var(--app-fg-muted)] mt-2">
-      Record the finish line before exporting.
+      No hill has both of its ends tapped yet, so there is nothing to save.
+    </p>
+  ) : !hasFinish ? (
+    <p className="text-xs text-center text-[var(--app-fg-muted)] mt-2">
+      No finish tap: the recorded hill splits are saved without a total time.
     </p>
   ) : null;
 
@@ -148,7 +154,12 @@ function RollSummaryContent() {
             />
           ))}
           <div className="flex justify-between items-center p-5 bg-primary/10">
-            <span className="font-bold text-primary">Total elapsed time</span>
+            <span className="font-bold text-primary">
+              Total elapsed time
+              {activeOrigin === 'h1h2' && (
+                <span className="block text-xs font-normal">From Hill 2 (Hill 1 skipped)</span>
+              )}
+            </span>
             <span className="font-mono font-bold text-xl text-primary">{totalElapsedDisplay}</span>
           </div>
         </div>
@@ -157,6 +168,7 @@ function RollSummaryContent() {
       <Block strong inset className="!my-0">
         {exportButton}
         {exportHint}
+        {syncError && <p className="text-xs text-center text-brand-red mt-2">{syncError}</p>}
       </Block>
     </div>
   );

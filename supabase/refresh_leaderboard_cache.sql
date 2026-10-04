@@ -1,5 +1,6 @@
 -- Run this entire file once in Supabase SQL Editor, then:
 --   select public.refresh_leaderboard_cache();
+-- Needs rolls.origin_station, so run phone_sync.sql first.
 
 create or replace function public.refresh_leaderboard_cache()
 returns void
@@ -25,6 +26,7 @@ begin
               and r.total_ms is not null
               and r.total_ms > 0
               and (buggy_val = 'all' or r.buggy = buggy_val)
+              and (hill_val <> 'all' or coalesce(r.origin_station, 'start') = 'start')
           ),
           ranked as (
             select
@@ -51,7 +53,7 @@ begin
               and s.hill = substring(hill_val from 2)::smallint
             where hill_val = 'all' or s.id is not null
           )
-          select coalesce(jsonb_agg(row_to_json(t)), '[]'::jsonb)
+          select coalesce(jsonb_agg(row_to_json(t) order by t."timeMs" asc), '[]'::jsonb)
           from (
             select
               row_number() over (order by time_ms asc) as rank,

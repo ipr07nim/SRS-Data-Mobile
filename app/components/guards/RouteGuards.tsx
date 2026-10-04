@@ -36,10 +36,8 @@ export function TimingRouteGuard({ children }: { children: ReactNode }) {
 
 export function SummaryRouteGuard({ children }: { children: ReactNode }) {
   const rollActive = useAppStore((s) => s.rollActive);
-  const recordsFinish = useAppStore((s) => s.records.finish);
-  const isFinished = useAppStore((s) => s.isFinished);
 
-  if (!rollActive && recordsFinish == null && !isFinished) {
+  if (!rollActive) {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;

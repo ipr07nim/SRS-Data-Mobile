@@ -1,4 +1,4 @@
-import type { HillLabel, StationId } from '../config/app.config';
+import type { HillLabel, OriginStation, StationId } from '../config/app.config';
 
 export type LeaderboardHill = HillLabel | 'all';
 import type { FlaggerNote, RollConfig, RollVideoAttachment, StationRecords } from './types';
@@ -55,6 +55,12 @@ export interface SavedRoll {
   videoUrl?: string | null;
   /** Omitted for legacy rows; set when loaded from Supabase. */
   status?: 'active' | 'completed' | 'cancelled';
+  /** 'h1h2' when Hill 1 was skipped; the total then covers Hills 2-5 only. */
+  originStation?: OriginStation;
+  /** The SRS plan entry this roll was timed for, when known. */
+  srsRollDate?: string | null;
+  srsRollNumber?: number | null;
+  srsBuggyId?: number | null;
 }
 
 export type RollSortField = 'date' | 'total';

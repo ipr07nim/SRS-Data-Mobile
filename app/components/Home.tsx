@@ -6,19 +6,18 @@ import {
   BlockTitle,
   Icon,
   List,
-  ListInput,
   ListItem,
 } from 'konsta/react';
 import { Thermometer, Wind, DropFill, Checkmark } from 'framework7-icons/react';
 import { MdThermostat, MdAir, MdWaterDrop, MdCheck } from 'react-icons/md';
-import { BUGGY_OPTIONS, WEATHER } from '../config/app.config';
+import { WEATHER } from '../config/app.config';
 import { useAppStore, STATIONS } from '../store';
 import { computeSplits, formatTime, parseFormattedTime } from '../domain/timing';
 import { HILL_AVERAGES } from '../config/app.config';
 import type { HillLabel } from '../config/app.config';
 import { RollProgressCard } from './shared/RollProgressCard';
 import { FlaggerNotesSection } from './shared/FlaggerNotesSection';
-import { StartConfigPanel } from './shared/StartConfigPanel';
+import { NextRollPicker } from './shared/NextRollPicker';
 import { WeatherModal } from './shared/WeatherModal';
 import { VideoUploadButton } from './shared/VideoUploadButton';
 import type { RoleView } from '../config/roles';
@@ -74,12 +73,12 @@ function PusherHome() {
         />
       </List>
 
-      <StartConfigPanel />
+      <NextRollPicker />
 
       <BlockHeader>Select your location</BlockHeader>
       <List strong inset>
         {STATIONS.map((station) => {
-          const isRecorded = records[station.id] !== null;
+          const isRecorded = records[station.id] != null;
           return (
             <ListItem
               key={station.id}
@@ -110,11 +109,8 @@ function PusherHome() {
 
 function MechanicHome() {
   const rollActive = useAppStore((s) => s.rollActive);
-  const config = useAppStore((s) => s.config);
-  const setConfig = useAppStore((s) => s.setConfig);
+  const snapshot = useAppStore((s) => s.rollConfigSnapshot);
   const rollNotes = useAppStore((s) => s.rollNotes);
-
-  const editable = !rollActive;
 
   return (
     <div className="relative">
@@ -122,42 +118,20 @@ function MechanicHome() {
         <RollProgressCard />
       </Block>
 
-      <BlockHeader className="!mt-8">Current configuration</BlockHeader>
-      <List strong inset>
-        {editable ? (
-          <>
-            <ListInput
-              label="Driver"
-              type="text"
-              placeholder="Driver name"
-              value={config.driver}
-              onChange={(e) =>
-                setConfig({ ...config, driver: (e.target as HTMLInputElement).value })
-              }
-            />
-            <ListInput
-              label="Buggy"
-              type="select"
-              value={config.buggy}
-              onChange={(e) =>
-                setConfig({ ...config, buggy: (e.target as HTMLSelectElement).value })
-              }
-            >
-              {BUGGY_OPTIONS.map((b) => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </ListInput>
-          </>
-        ) : (
-          <>
-            <ListItem title="Driver" after={config.driver || 'Not set'} />
-            <ListItem title="Buggy" after={config.buggy} />
-          </>
-        )}
-        {config.pushers.map((p, i) => (
-          <ListItem key={i} title={`Pusher H${i + 1}`} after={p || 'Not set'} />
-        ))}
-      </List>
+      {rollActive && snapshot && (
+        <>
+          <BlockHeader className="!mt-8">On the course</BlockHeader>
+          <List strong inset>
+            <ListItem title="Driver" after={snapshot.driver || 'Not set'} />
+            <ListItem title="Buggy" after={snapshot.buggy || 'Not set'} />
+            {snapshot.pushers.map((p, i) => (
+              <ListItem key={i} title={`Pusher H${i + 1}`} after={p || 'Not set'} />
+            ))}
+          </List>
+        </>
+      )}
+
+      <NextRollPicker />
 
       {rollActive && rollNotes ? (
         <>
@@ -211,7 +185,10 @@ function DriverHome() {
   const splits = (rollActive && isFinished) ? computeSplits(records, config) : [];
 
   const myRolls = savedRolls
-    .filter((r) => r.driver.toLowerCase() === displayName.toLowerCase() && r.totalMs > 0)
+    .filter((r) =>
+      r.driver.toLowerCase() === displayName.toLowerCase()
+      && r.totalMs > 0
+      && r.originStation !== 'h1h2')
     .sort((a, b) => b.startTimeMs - a.startTimeMs)
     .slice(0, 10);
 
@@ -324,7 +301,7 @@ function FlaggerHome() {
       <BlockHeader className="!mt-8">Stations</BlockHeader>
       <List strong inset>
         {STATIONS.map((station) => {
-          const isRecorded = records[station.id] !== null;
+          const isRecorded = records[station.id] != null;
           return (
             <ListItem
               key={station.id}

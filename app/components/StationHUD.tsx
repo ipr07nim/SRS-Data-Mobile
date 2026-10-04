@@ -11,10 +11,16 @@ import {
 import { DocText } from 'framework7-icons/react';
 import { MdDescription } from 'react-icons/md';
 import { UNDO_WINDOW_MS, isStationId } from '../config/app.config';
+import type { StationId } from '../config/app.config';
+import { isOpenerStation, stationAction } from '../domain/timing';
+import type { StationActionKind } from '../domain/timing';
+import { sharedNow } from '../lib/serverClock';
+import { useWakeLock } from '../hooks/useWakeLock';
 import { useAppStore, STATIONS } from '../store';
 import { TimingRouteGuard } from './guards/RouteGuards';
 import { RollProgressCard } from './shared/RollProgressCard';
 import { StationCornerActions } from './shared/StationCornerActions';
+import { NextRollPicker } from './shared/NextRollPicker';
 
 export default function StationHUD() {
   return (
@@ -22,6 +28,25 @@ export default function StationHUD() {
       <StationHUDContent />
     </TimingRouteGuard>
   );
+}
+
+function primaryLabelFor(action: StationActionKind, stationId: StationId, name: string, opening: boolean) {
+  if (opening) return 'Starting…';
+  const atHill2 = stationId === 'h1h2';
+  switch (action) {
+    case 'open':
+      return atHill2 ? 'Start roll at Hill 2' : 'Start roll';
+    case 'openNext':
+      return atHill2 ? 'Start next roll at Hill 2' : 'Start next roll';
+    case 'record':
+      return `Log ${name}`;
+    case 'recorded':
+      return 'Recorded';
+    case 'busy':
+      return 'Roll on course';
+    case 'wait':
+      return 'Waiting for start';
+  }
 }
 
 function StationHUDContent() {
@@ -32,11 +57,10 @@ function StationHUDContent() {
   const {
     rollActive,
     activeRoleView,
-    startRoll,
-    recordStation,
+    tapStation,
     undoRecord,
     records,
-    config,
+    opening,
     toggleStationUnreliable,
     unreliableStations,
   } = useAppStore();
@@ -46,20 +70,32 @@ function StationHUDContent() {
 
   const [pressedAnim, setPressedAnim] = useState(false);
   const [showUndo, setShowUndo] = useState(false);
+  const [now, setNow] = useState(() => sharedNow());
 
   const isFlagOnly = activeRoleView === 'flagger';
+  useWakeLock(Boolean(station) && !isFlagOnly);
 
   useEffect(() => {
     setShowUndo(false);
     document.querySelector('main')?.scrollTo({ top: 0, behavior: 'auto' });
   }, [stationId]);
 
-  const isStart = station?.id === 'start';
+  // Opener stations unlock a minute after a roll starts; re-evaluate as time passes.
+  useEffect(() => {
+    const timer = setInterval(() => setNow(sharedNow()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const isFinish = station?.id === 'finish';
   const sid = validId;
-  const isRecorded = sid ? records[sid] !== null : false;
-  const finishRecorded = records.finish !== null;
-  const isDisabled = isFlagOnly || !station || (!isStart && !rollActive) || isRecorded;
+  const isRecorded = sid ? records[sid] != null : false;
+  const finishRecorded = records.finish != null;
+  const action: StationActionKind = sid
+    ? stationAction(sid, rollActive ? { records } : null, now)
+    : 'wait';
+  const canTap = action === 'open' || action === 'openNext' || action === 'record';
+  const isDisabled = isFlagOnly || !station || opening || !canTap;
+  const isOpener = sid ? isOpenerStation(sid) : false;
 
   useEffect(() => {
     if (!station || !isRecorded || !showUndo) return;
@@ -77,19 +113,13 @@ function StationHUDContent() {
   }
 
   const handleAction = () => {
+    const tapMs = sharedNow();
     if (isDisabled) return;
 
     setPressedAnim(true);
-    const now = Date.now();
-
-    if (isStart && !rollActive) {
-      void startRoll(config);
-    } else {
-      void recordStation(station.id, now);
-    }
-
     setShowUndo(true);
     setTimeout(() => setPressedAnim(false), 400);
+    void tapStation(station.id, tapMs);
   };
 
   const handleUndo = () => {
@@ -103,11 +133,13 @@ function StationHUDContent() {
     toggleStationUnreliable(station.id);
   };
 
-  const primaryLabel = isRecorded
-    ? 'Recorded'
-    : isStart && !rollActive
-      ? 'Start roll'
-      : `Log ${station.name}`;
+  const primaryLabel = primaryLabelFor(action, station.id, station.name, opening);
+  const subLabel =
+    action === 'wait'
+      ? 'Rolls start at Start, or at H1-H2 when Hill 1 is skipped'
+      : action === 'busy'
+        ? 'A roll just started. This station unlocks in a moment.'
+        : station.label;
 
   const summaryButton =
     isFinish && finishRecorded && !showUndo ? (
@@ -150,17 +182,19 @@ function StationHUDContent() {
               className="!w-56 !h-56 !rounded-full flex-col"
             >
               <span className="text-xl font-bold text-center px-2">{primaryLabel}</span>
-              {!isRecorded && (
-                <span className="text-xs opacity-80 max-w-[140px] text-center mt-1">
-                  {station.label}
+              {canTap && action !== 'record' ? null : (
+                <span className="text-xs opacity-80 max-w-[160px] text-center mt-1">
+                  {subLabel}
                 </span>
               )}
             </Button>
           </div>
         ) : (
           <>
-            {isRecorded && (
-              <p className="text-sm text-[var(--app-fg-muted)] mb-2">Status: Recorded</p>
+            {!canTap && (
+              <p className="text-sm text-[var(--app-fg-muted)] mb-2">
+                Status: {primaryLabel}. {action === 'recorded' ? '' : subLabel}
+              </p>
             )}
             <Fab
               className={`fixed right-4 bottom-24 z-50 ${
@@ -177,9 +211,13 @@ function StationHUDContent() {
       </Card>
       </Block>
 
+      {isOpener && !isFlagOnly && (action === 'open' || action === 'openNext') && (
+        <NextRollPicker compact />
+      )}
+
       <StationCornerActions
-        showUndo={isRecorded && showUndo}
-        showFlag={isRecorded}
+        showUndo={isRecorded && showUndo && !opening}
+        showFlag={isRecorded && action !== 'openNext' && !opening}
         isFlagged={isFlagged}
         onUndo={handleUndo}
         onFlag={handleFlag}

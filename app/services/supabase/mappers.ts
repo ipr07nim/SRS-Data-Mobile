@@ -113,6 +113,10 @@ export function dbRollToSavedRoll(roll: DbRollRow, splits: DbRollSplitRow[]): Sa
     video: null,
     videoUrl: roll.video_url ?? null,
     status: roll.status,
+    originStation: roll.origin_station ?? 'start',
+    srsRollDate: roll.srs_roll_date?.slice(0, 10) ?? null,
+    srsRollNumber: roll.srs_roll_number,
+    srsBuggyId: roll.srs_buggy_id,
   };
 }
 
