@@ -17,6 +17,7 @@ declare module 'framework7-icons/react' {
   export const CloudUpload: F7Icon;
   export const Cube: F7Icon;
   export const AntFill: F7Icon;
+  export const ListNumber: F7Icon;
 
   const icons: Record<string, F7Icon>;
   export default icons;

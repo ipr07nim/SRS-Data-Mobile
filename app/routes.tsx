@@ -10,6 +10,7 @@ export default [
   layout("./components/Layout.tsx", [
     index("./components/Home.tsx"),
     route("assign", "./components/Assign.tsx"),
+    route("order", "./components/RollOrder.tsx"),
     route("timing/:stationId", "./components/StationHUD.tsx"),
     route("summary", "./components/RollSummary.tsx"),
     route("history/:rollId?", "./components/History.tsx"),

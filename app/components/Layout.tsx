@@ -10,8 +10,8 @@ import {
   ToolbarPane,
   Icon,
 } from 'konsta/react';
-import { Timer, GearAlt, DocPlaintext } from 'framework7-icons/react';
-import { MdTimer, MdSettings, MdAssignment } from 'react-icons/md';
+import { Timer, GearAlt, DocPlaintext, ListNumber } from 'framework7-icons/react';
+import { MdTimer, MdSettings, MdAssignment, MdFormatListNumbered } from 'react-icons/md';
 import { getRoleById, roleShowsAssignTab } from '../config/roles';
 import { resolveKonstaTheme } from '../lib/platformTheme';
 import { useAppStore } from '../store';
@@ -74,6 +74,7 @@ function LayoutShell() {
     location.pathname.startsWith('/timing') ||
     location.pathname === '/summary';
   const assignActive = location.pathname.startsWith('/assign');
+  const orderActive = location.pathname.startsWith('/order');
 
   return (
     <Page className="flex flex-col h-full bg-[var(--app-bg)] text-[var(--app-fg)]">
@@ -140,6 +141,18 @@ function LayoutShell() {
               label="Assign"
             />
           )}
+          <TabbarLink
+            className="flex-1"
+            active={orderActive}
+            onClick={() => navigate('/order')}
+            icon={
+              <Icon
+                ios={<ListNumber className="w-7 h-7" />}
+                material={<MdFormatListNumbered className="w-6 h-6" />}
+              />
+            }
+            label="Order"
+          />
           <NavLogsMenu />
         </ToolbarPane>
       </Tabbar>
